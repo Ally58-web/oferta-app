@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator instant de scop și preț</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b66;
+    --line: #e2e0d8;
+    --surface: #faf9f5;
+    --accent: #2f5d4f;
+    --accent-ink: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    padding: 32px 16px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; }
+  label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+  select, input[type="text"], input[type="email"], input[type="number"] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 8px; font-size: 14px; background: white; color: var(--ink);
+  }
+  fieldset { border: none; padding: 0; margin: 0; }
+  .row { margin-bottom: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+  .checks label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink);
+    background: white; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0; }
+  .checks input { width: auto; }
+  .range-row { display: flex; align-items: center; gap: 12px; }
+  .range-row span { font-size: 14px; font-weight: 600; min-width: 40px; text-align: right; }
+  .result {
+    background: white; border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; margin: 24px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  .result .metric-label { font-size: 12px; color: var(--muted); margin: 0 0 2px; }
+  .result .metric-value { font-size: 20px; font-weight: 600; margin: 0; }
+  button {
+    width: 100%; padding: 13px; border-radius: 8px; border: none;
+    background: var(--accent); color: var(--accent-ink); font-size: 15px;
+    font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  #status { font-size: 13px; margin-top: 12px; text-align: center; min-height: 18px; }
+  #status.ok { color: var(--accent); }
+  #status.err { color: #b23b3b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cât ar costa aplicația ta?</h1>
+  <p class="sub">Estimare instant, orientativă — confirmată la discuția de discovery.</p>
+
+  <form id="offerForm">
+    <div class="row">
+      <label for="projectType">Tip proiect</label>
+      <select id="projectType">
+        <option value="site">Site de prezentare</option>
+        <option value="shop">Magazin online</option>
+        <option value="app" selected>Aplicație internă / business</option>
+        <option value="complex">Aplicație cu integrări complexe</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label>Integrări necesare</label>
+      <div class="checks">
+        <label><input type="checkbox" value="anaf"> ANAF e-Factura</label>
+        <label><input type="checkbox" value="payments"> Procesator de plăți</label>
+        <label><input type="checkbox" value="auth"> Autentificare utilizatori</label>
+        <label><input type="checkbox" value="api"> API extern (ERP, curier)</label>
+      </div>
+    </div>
+
+    <div class="row">
+      <label for="users">Utilizatori concurenți estimați</label>
+      <div class="range-row">
+        <input type="range" id="users" min="5" max="500" value="20" step="5" style="flex:1">
+        <span id="usersOut">20</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <label><input type="checkbox" id="maintenance" style="width:auto; margin-right:8px">Include mentenanță lunară</label>
+    </div>
+
+    <div class="result" id="resultBox" style="display:none">
+      <div><p class="metric-label">Preț estimat</p><p class="metric-value" id="priceOut">–</p></div>
+      <div><p class="metric-label">Durată</p><p class="metric-value" id="daysOut">–</p></div>
+    </div>
+
+    <div class="row grid2">
+      <div>
+        <label for="clientName">Numele tău</label>
+        <input type="text" id="clientName" required>
+      </div>
+      <div>
+        <label for="companyName">Firma ta</label>
+        <input type="text" id="companyName" required>
+      </div>
+    </div>
+    <div class="row">
+      <label for="clientEmail">Email</label>
+      <input type="email" id="clientEmail" required>
+    </div>
+
+    <button type="submit" id="submitBtn">Trimite-mi oferta pe email</button>
+    <p id="status"></p>
+  </form>
+</div>
+
+<script>
+  // Schimbă cu adresa reală a backend-ului tău (vezi README din proiectul Python).
+  const API_BASE = "http://localhost:8000";
+
+  const usersInput = document.getElementById("users");
+  const usersOut = document.getElementById("usersOut");
+  usersInput.addEventListener("input", () => usersOut.textContent = usersInput.value);
+
+  document.getElementById("offerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("submitBtn");
+    const status = document.getElementById("status");
+    btn.disabled = true;
+    status.className = "";
+    status.textContent = "Se generează oferta...";
+
+    const integrations = Array.from(document.querySelectorAll(".checks input:checked")).map(c => c.value);
+
+    const payload = {
+      client_name: document.getElementById("clientName").value,
+      company_name: document.getElementById("companyName").value,
+      client_email: document.getElementById("clientEmail").value,
+      project_type: document.getElementById("projectType").value,
+      integrations,
+      users: parseInt(usersInput.value, 10),
+      maintenance: document.getElementById("maintenance").checked,
+      send_email: true,
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/generate-offer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || "Eroare la server");
+      const data = await res.json();
+
+      document.getElementById("resultBox").style.display = "grid";
+      document.getElementById("priceOut").textContent =
+        `${data.offer.price_min.toLocaleString("ro-RO")} – ${data.offer.price_max.toLocaleString("ro-RO")} EUR`;
+      document.getElementById("daysOut").textContent = `${data.offer.days} zile`;
+
+      status.className = "ok";
+      status.textContent = data.email_sent
+        ? "Ofertă trimisă pe email. Verifică inbox-ul (și spam)."
+        : "Ofertă generată.";
+    } catch (err) {
+      status.className = "err";
+      status.textContent = "Nu am putut genera oferta: " + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
