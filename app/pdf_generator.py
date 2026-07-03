@@ -18,8 +18,20 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
-FONT_PATH = Path(__file__).resolve().parent.parent / "app" / "fonts" / "DejaVuSans.ttf"
-pdfmetrics.registerFont(TTFont("DejaVuSans", str(FONT_PATH)))
+
+# Fontul stă în oferta-app/fonts/DejaVuSans.ttf — două nivele mai sus
+# față de acest fișier (app/pdf_generator.py -> app/ -> oferta-app/).
+FONT_PATH = Path(__file__).resolve().parent.parent / "fonts" / "DejaVuSans.ttf"
+FONT_NAME = "DejaVuSans"
+
+if not FONT_PATH.exists():
+    raise FileNotFoundError(
+        f"Nu găsesc fontul la {FONT_PATH}. Verifică să existe fișierul "
+        f"DejaVuSans.ttf exact în acel folder (extensia trebuie să fie "
+        f".ttf, nu .tff)."
+    )
+
+pdfmetrics.registerFont(TTFont(FONT_NAME, str(FONT_PATH)))
 
 
 def generate_offer_pdf(client_name: str, company_name: str, offer: dict,
@@ -33,15 +45,17 @@ def generate_offer_pdf(client_name: str, company_name: str, offer: dict,
         topMargin=25 * mm, bottomMargin=20 * mm,
         leftMargin=20 * mm, rightMargin=20 * mm,
     )
+
     styles = getSampleStyleSheet()
-    styles["Normal"].fontName = "DejaVuSans"
-styles["Title"].fontName = "DejaVuSans"
-styles["Heading2"].fontName = "DejaVuSans"
+    # Setăm fontul cu diacritice PE stilurile existente, nu ca stil nou.
+    for style_name in ("Normal", "Title", "Heading2"):
+        styles[style_name].fontName = FONT_NAME
+
     title_style = ParagraphStyle(
         "OfferTitle", parent=styles["Title"], fontSize=20, spaceAfter=4
     )
     subtitle_style = ParagraphStyle(
-        "OfferSubtitle", parent=styles["DejaVuSans"], textColor=colors.grey, spaceAfter=20
+        "OfferSubtitle", parent=styles["Normal"], textColor=colors.grey, spaceAfter=20
     )
     section_style = ParagraphStyle(
         "Section", parent=styles["Heading2"], spaceBefore=16, spaceAfter=8
@@ -50,11 +64,11 @@ styles["Heading2"].fontName = "DejaVuSans"
     story = []
     story.append(Paragraph(f"Ofertă de colaborare — {firm_name}", title_style))
     story.append(Paragraph(f"Pregătită pentru {client_name}, {company_name}", subtitle_style))
-    story.append(Paragraph(f"Data: {date.today().strftime('%d.%m.%Y')}", styles["DejaVuSans"]))
+    story.append(Paragraph(f"Data: {date.today().strftime('%d.%m.%Y')}", styles["Normal"]))
 
     story.append(Paragraph("Scopul proiectului", section_style))
     for label in offer["labels"]:
-        story.append(Paragraph(f"• {label}", styles["DejaVuSans"]))
+        story.append(Paragraph(f"• {label}", styles["Normal"]))
 
     story.append(Paragraph("Estimare", section_style))
     table_data = [
@@ -68,6 +82,7 @@ styles["Heading2"].fontName = "DejaVuSans"
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (0, -1), colors.whitesmoke),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+        ("FONTNAME", (0, 0), (-1, -1), FONT_NAME),
         ("FONTSIZE", (0, 0), (-1, -1), 10),
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
@@ -79,7 +94,7 @@ styles["Heading2"].fontName = "DejaVuSans"
     story.append(Paragraph(
         "Această estimare este orientativă și va fi confirmată în urma discuției "
         "de discovery (15-20 minute), unde stabilim exact cerințele tehnice și "
-        "de securitate ale proiectului tău.", styles["DejaVuSans"]
+        "de securitate ale proiectului tău.", styles["Normal"]
     ))
 
     story.append(Spacer(1, 20))
@@ -87,9 +102,8 @@ styles["Heading2"].fontName = "DejaVuSans"
         "Notă: prețul final poate varia în funcție de complexitatea reală "
         "identificată la discovery și de eventuale cerințe suplimentare de "
         "conformitate (ex. ANAF, PCI DSS pentru plăți).",
-        ParagraphStyle("Note", parent=styles["DejaVuSans"], fontSize=8, textColor=colors.grey)
+        ParagraphStyle("Note", parent=styles["Normal"], fontSize=8, textColor=colors.grey)
     ))
 
     doc.build(story)
     return filepath
-
