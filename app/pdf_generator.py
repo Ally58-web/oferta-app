@@ -19,9 +19,9 @@ from reportlab.pdfbase.ttfonts import TTFont
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-# Fontul stă în oferta-app/fonts/DejaVuSans.ttf — două nivele mai sus
-# față de acest fișier (app/pdf_generator.py -> app/ -> oferta-app/).
-FONT_PATH = Path(__file__).resolve().parent.parent / "fonts" / "DejaVuSans.ttf"
+# Fontul stă în app/fonts/DejaVuSans.ttf — un singur nivel mai sus
+# față de acest fișier (app/pdf_generator.py -> app/fonts/).
+FONT_PATH = Path(__file__).resolve().parent / "fonts" / "DejaVuSans.ttf"
 FONT_NAME = "DejaVuSans"
 
 if not FONT_PATH.exists():
