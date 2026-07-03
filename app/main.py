@@ -18,19 +18,16 @@ from app.pdf_generator import generate_offer_pdf
 from app.email_sender import send_offer_email
 
 app = FastAPI(title="Generator automat de oferte", version="1.0.0")
-@app.get("/")
-def root():
-    return {
-        "status": "online",
-        "message": "Generator automat de oferte API",
-        "docs": "/docs"
-    }
+
 # Permite calculatorului de pe site-ul tău să apeleze acest API din browser.
 # Înlocuiește cu domeniul tău real înainte de a merge în producție —
 # "*" e ok doar pentru testare locală.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://www.site-ul-tau.ro", "http://localhost:5500"],
+    allow_origins=[
+        "https://laptopuriprogramatori.blogspot.com",
+        "http://localhost:5500",
+    ],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
@@ -93,3 +90,4 @@ def download_offer(filename: str):
     if not filepath.exists() or not filepath.is_relative_to(filepath.parent):
         raise HTTPException(status_code=404, detail="Fișierul nu a fost găsit.")
     return FileResponse(filepath, media_type="application/pdf", filename=filename)
+
