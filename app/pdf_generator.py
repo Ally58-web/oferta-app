@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
-FONT_PATH = Path(__file__).resolve().parent / "fonts" / "DejaVuSans.ttf"
+FONT_PATH = Path(__file__).resolve().parent.parent / "app" / "fonts" / "DejaVuSans.ttf"
 pdfmetrics.registerFont(TTFont("DejaVuSans", str(FONT_PATH)))
 
 
