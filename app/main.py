@@ -18,7 +18,13 @@ from app.pdf_generator import generate_offer_pdf
 from app.email_sender import send_offer_email
 
 app = FastAPI(title="Generator automat de oferte", version="1.0.0")
-
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "message": "Generator automat de oferte API",
+        "docs": "/docs"
+    }
 # Permite calculatorului de pe site-ul tău să apeleze acest API din browser.
 # Înlocuiește cu domeniul tău real înainte de a merge în producție —
 # "*" e ok doar pentru testare locală.
