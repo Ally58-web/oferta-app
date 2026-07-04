@@ -1,46 +1,74 @@
 """
-Trimite oferta generată pe email, folosind credențiale SMTP din variabile
-de mediu (niciodată hardcodate în cod).
+Trimite oferta generată pe email, folosind API-ul web al SendGrid
+(HTTPS, port 443) — NU protocolul SMTP clasic.
+
+De ce: platformele de găzduire gratuite (Render, Railway free tier etc.)
+blochează frecvent porturile SMTP (25, 465, 587) ca măsură anti-spam.
+API-ul web merge peste HTTPS, exact ca orice alt apel către un site —
+nu poate fi blocat fără să blocheze internetul serviciului în sine.
 """
 
+import base64
 import os
-import smtplib
-from email.message import EmailMessage
 from pathlib import Path
+
+import requests
+
+SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send"
 
 
 def send_offer_email(to_email: str, client_name: str, pdf_path: Path,
                       firm_name: str = "Numele firmei tale") -> None:
-    """Trimite PDF-ul de ofertă ca atașament pe email-ul clientului."""
-    smtp_host = os.environ.get("SMTP_HOST")
-    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
-    smtp_user = os.environ.get("SMTP_USER")
-    smtp_password = os.environ.get("SMTP_PASSWORD")
+    """Trimite PDF-ul de ofertă ca atașament pe email-ul clientului, prin SendGrid API."""
+    api_key = os.environ.get("SMTP_PASSWORD")  # cheia SendGrid, stocată în aceeași variabilă ca înainte
+    sender_email = os.environ.get("SENDER_EMAIL")
 
-    if not all([smtp_host, smtp_user, smtp_password]):
+    if not api_key:
         raise RuntimeError(
-            "Configurează SMTP_HOST, SMTP_USER și SMTP_PASSWORD în variabilele "
-            "de mediu (vezi .env.example) înainte de a trimite emailuri."
+            "Lipsește SMTP_PASSWORD (cheia API SendGrid) din variabilele de mediu."
         )
-
-    msg = EmailMessage()
-    msg["Subject"] = f"Oferta ta de la {firm_name}"
-    msg["From"] = smtp_user
-    msg["To"] = to_email
-    msg.set_content(
-        f"Bună, {client_name},\n\n"
-        f"Îți atașăm oferta discutată. Estimarea este orientativă și o "
-        f"confirmăm împreună la discuția de discovery.\n\n"
-        f"Cu drag,\n{firm_name}"
-    )
+    if not sender_email:
+        raise RuntimeError(
+            "Lipsește SENDER_EMAIL din variabilele de mediu — trebuie să fie exact "
+            "adresa pe care ai verificat-o la SendGrid (Single Sender Verification)."
+        )
 
     with open(pdf_path, "rb") as f:
-        msg.add_attachment(
-            f.read(), maintype="application", subtype="pdf",
-            filename=pdf_path.name
+        pdf_base64 = base64.b64encode(f.read()).decode()
+
+    payload = {
+        "personalizations": [{"to": [{"email": to_email}]}],
+        "from": {"email": sender_email, "name": firm_name},
+        "subject": f"Oferta ta de la {firm_name}",
+        "content": [{
+            "type": "text/plain",
+            "value": (
+                f"Bună, {client_name},\n\n"
+                f"Îți atașăm oferta discutată. Estimarea este orientativă și o "
+                f"confirmăm împreună la discuția de discovery.\n\n"
+                f"Cu drag,\n{firm_name}"
+            ),
+        }],
+        "attachments": [{
+            "content": pdf_base64,
+            "filename": pdf_path.name,
+            "type": "application/pdf",
+            "disposition": "attachment",
+        }],
+    }
+
+    response = requests.post(
+        SENDGRID_API_URL,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=15,
+    )
+
+    if response.status_code >= 300:
+        raise RuntimeError(
+            f"SendGrid a refuzat trimiterea (cod {response.status_code}): {response.text}"
         )
 
-    with smtplib.SMTP(smtp_host, smtp_port) as server:
-        server.starttls()
-        server.login(smtp_user, smtp_password)
-        server.send_message(msg)
