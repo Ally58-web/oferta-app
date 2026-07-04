@@ -45,7 +45,7 @@ def send_offer_email(to_email: str, client_name: str, pdf_path: Path,
             "value": (
                 f"Bună, {client_name},\n\n"
                 f"Îți atașăm oferta discutată. Estimarea este orientativă și o "
-                f"confirmăm împreună la discuția de discovery.\n\n"
+                f"confirmăm împreună la discuția de consultanță gratuită.\n\n"
                 f"Cu drag,\n{firm_name}"
             ),
         }],
