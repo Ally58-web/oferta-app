@@ -93,7 +93,7 @@ def generate_offer_pdf(client_name: str, company_name: str, offer: dict,
     story.append(Paragraph("Pașii următori", section_style))
     story.append(Paragraph(
         "Această estimare este orientativă și va fi confirmată în urma discuției "
-        "de discovery (15-20 minute), unde stabilim exact cerințele tehnice și "
+        "de consultanță gratuită (15-20 minute), unde stabilim exact cerințele tehnice și "
         "de securitate ale proiectului tău.", styles["Normal"]
     ))
 
